@@ -24,7 +24,7 @@ const today=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth
 const tf=t=>t?new Date(t).toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit"}):"-";
 const RL={admin:"એડમિન",supervisor:"સુપરવાઇઝર",employee:"કામદાર"};
 function calc(w,h,ot){const hr=w/HR,n=Math.min(h,HR),o=ot?Math.max(0,h-HR):0,g=Math.round(n*hr+o*hr*2),pf=Math.round(w*.12),es=Math.round(g*.0075);return{n,o,g,pf,es,net:g-pf-es}}
-function top(){return`<div class="top"><b>${U.name}</b><span>${RL[U.role]}</span><button onclick="auth.signOut()">બહાર</button></div>`}
+function hdr(){return`<div class="top"><b>${U.name}</b><span>${RL[U.role]}</span><button onclick="auth.signOut()">બહાર</button></div>`}
 function beep(){try{AC=AC||new(window.AudioContext||window.webkitAudioContext)();const o=AC.createOscillator();o.connect(AC.destination);o.frequency.value=880;o.start();setTimeout(()=>o.stop(),500);navigator.vibrate&&navigator.vibrate(400)}catch(e){}}
 function shot(f){return new Promise(ok=>{const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const c=document.createElement("canvas"),s=240/im.width;c.width=240;c.height=im.height*s;c.getContext("2d").drawImage(im,0,0,c.width,c.height);ok(c.toDataURL("image/jpeg",.5))};im.src=r.result};r.readAsDataURL(f)})}
 function pos(){return new Promise((ok,no)=>navigator.geolocation.getCurrentPosition(p=>ok(p.coords),e=>no(e),{enableHighAccuracy:true,timeout:20000}))}
@@ -42,7 +42,7 @@ auth.onAuthStateChanged(async u=>{unsub.forEach(f=>f());unsub=[];clearInterval(t
 
 /* ---------- કામદાર ---------- */
 async function empUI(){
- go(top()+`<div id="chk"></div><div class="card"><h3>આજની હાજરી</h3><input type="file" accept="image/*" capture="user" id="f" style="display:none" onchange="pick(this)"><button class="a" onclick="$('f').click()">📷 સેલ્ફી લો (હાજરી / છૂટવું)</button><div id="msg" class="mu"></div></div><div class="card" id="earn"></div>`);
+ go(hdr()+`<div id="chk"></div><div class="card"><h3>આજની હાજરી</h3><input type="file" accept="image/*" capture="user" id="f" style="display:none" onchange="pick(this)"><button class="a" onclick="$('f').click()">📷 સેલ્ફી લો (હાજરી / છૂટવું)</button><div id="msg" class="mu"></div></div><div class="card" id="earn"></div>`);
  unsub.push(db.collection("attendance").doc(U.id+"_"+today()).onSnapshot(d=>{const a=d.data(),e=$("earn");if(!e)return;if(!a){e.innerHTML='<span class="mu">આજે હાજરી નથી.</span>';return}
   const h=a.out?a.hrs:Math.round((Date.now()-a.in)/360000)/10,c=calc(a.w,h,a.otSt=="ok");
   e.innerHTML=`<h3>આજની કમાણી</h3><div class="big">₹${c.net}</div><div class="row"><span>આવ્યા</span><b>${tf(a.in)}</b></div><div class="row"><span>છૂટ્યા</span><b>${a.out?tf(a.out):"હજી ચાલુ"}</b></div><div class="row"><span>કલાક</span><b>${h}</b></div><div class="row"><span>ઓવરટાઇમ</span><b>${a.hrs>HR?(a.hrs-HR).toFixed(1)+" ક. "+({pending:"મંજૂરી બાકી",ok:"મંજૂર",no:"નામંજૂર"})[a.otSt]:"નથી"}</b></div><div class="row"><span>કુલ પગાર</span><b>₹${c.g}</b></div><div class="row"><span>EPF</span><b>-₹${c.pf}</b></div><div class="row"><span>ESIC</span><b>-₹${c.es}</b></div>`}));
@@ -65,7 +65,7 @@ async function pick(i){if(!i.files[0])return;setM("લોકેશન અને 
 async function supUI(){
  const ad=U.role=="admin";
  TEAM=(await db.collection("users").where("cid","==",CID).get()).docs.map(d=>({id:d.id,...d.data()}));
- go(top()+`<div class="card"><h3>આજની હાજરી</h3><div id="list" class="mu">લોડ...</div></div>
+ go(hdr()+`<div class="card"><h3>આજની હાજરી</h3><div id="list" class="mu">લોડ...</div></div>
  <div class="card"><h3>રેન્ડમ સેલ્ફી ચેક</h3><select id="ce">${TEAM.filter(x=>x.role=="employee").map(x=>`<option value="${x.id}">${x.name}</option>`).join("")}</select><button class="a" onclick="sendChk()">🔔 ચેક મોકલો</button><div id="cl"></div></div>
  <div class="card"><h3>સાઇટ રેન્જ</h3><div id="rg"></div></div>
  ${ad?`<div class="card"><h3>નવો કામદાર / સુપરવાઇઝર</h3><input id="un" placeholder="નામ"><input id="um" type="tel" placeholder="મોબાઇલ"><input id="up" type="password" placeholder="PIN (6 આંકડા)"><input id="uw" type="number" placeholder="રોજનો પગાર ₹"><select id="ur"><option value="employee">કામદાર</option><option value="supervisor">સુપરવાઇઝર</option></select><button class="a" onclick="addU()">ઉમેરો</button><div class="mu">${TEAM.map(x=>x.name+" ("+RL[x.role]+")").join(", ")}</div></div>
