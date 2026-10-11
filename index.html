@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="gu"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AttendPay</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f4f7fb;color:#1f2937;font-family:"Nirmala UI","Noto Sans Gujarati",system-ui,sans-serif;font-size:16px;padding:10px;max-width:600px;margin:auto}
+.top{display:flex;gap:8px;align-items:center;background:#1e3a5f;color:#fff;padding:10px;border-radius:10px;margin-bottom:10px}.top b{flex:1}.top button{background:#fff;border:0;border-radius:6px;padding:6px 10px}
+.card{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:12px;margin-bottom:10px}h3{margin:0 0 8px;font-size:17px}
+input,select{width:100%;padding:10px;margin:4px 0;border:1px solid #d1d5db;border-radius:8px;font:inherit}
+button.a{width:100%;padding:12px;margin-top:6px;border:0;border-radius:8px;background:#f59e0b;color:#1e3a5f;font:inherit;font-weight:700}
+button.s{padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;background:#fff;font:inherit;margin-left:4px}.g{background:#15803d!important;color:#fff!important}.r{background:#b91c1c!important;color:#fff!important}
+.row{display:flex;justify-content:space-between;align-items:center;gap:6px;padding:6px 0;border-bottom:1px dashed #e5e7eb}.mu{color:#6b7280;font-size:13px}.big{font-size:26px;font-weight:700;color:#1e3a5f}
+.ok{color:#15803d}.bad{color:#b91c1c}img.t{width:40px;height:40px;object-fit:cover;border-radius:6px}.sc{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:13px}td,th{padding:5px;border-bottom:1px solid #e5e7eb;text-align:right;white-space:nowrap}td:first-child,th:first-child{text-align:left}
+</style></head><body><div id="app">AttendPay v2 લોડ થાય છે...</div>
+<script>function showErr(m){var a=document.getElementById("app");if(a)a.innerHTML='<div class="card" style="color:#b91c1c"><b>ભૂલ:</b> '+m+"<br>આનો સ્ક્રીનશોટ Claude ને મોકલો.</div>"}window.onerror=function(m,s,l){showErr(m+" (લાઇન "+l+")")};window.addEventListener("unhandledrejection",function(e){showErr(e.reason&&e.reason.message||e.reason)});setTimeout(function(){var a=document.getElementById("app");if(a&&a.innerHTML.indexOf("લોડ થાય છે")>-1)showErr("10 સેકન્ડમાં લોડ ન થયું. ઇન્ટરનેટ કે Firebase ફાઇલો બ્લોક થઈ શકે.")},10000)</script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+const cfg={apiKey:"AIzaSyAw5tYWr82TMO_mrnFVmb16UtFgFlKxxPE",authDomain:"heta-well-care-attendance.firebaseapp.com",projectId:"heta-well-care-attendance",storageBucket:"heta-well-care-attendance.firebasestorage.app",messagingSenderId:"657267003384",appId:"1:657267003384:web:8c7cf19198af9ff72b500d"};
+firebase.initializeApp(cfg);const auth=firebase.auth(),db=firebase.firestore();const sec=firebase.initializeApp(cfg,"sec");
+let U=null,CID=null,AC=null,unsub=[],ck=null,tm=null,TEAM=[];const HR=8;
+const $=i=>document.getElementById(i),em=m=>m.trim()+"@attendpay.app",go=h=>$("app").innerHTML=h;
+const today=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")};
+const tf=t=>t?new Date(t).toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit"}):"-";
+const RL={admin:"એડમિન",supervisor:"સુપરવાઇઝર",employee:"કામદાર"};
+function calc(w,h,ot){const hr=w/HR,n=Math.min(h,HR),o=ot?Math.max(0,h-HR):0,g=Math.round(n*hr+o*hr*2),pf=Math.round(w*.12),es=Math.round(g*.0075);return{n,o,g,pf,es,net:g-pf-es}}
+function hdr(){return`<div class="top"><b>${U.name}</b><span>${RL[U.role]}</span><button onclick="auth.signOut()">બહાર</button></div>`}
+function beep(){try{AC=AC||new(window.AudioContext||window.webkitAudioContext)();const o=AC.createOscillator();o.connect(AC.destination);o.frequency.value=880;o.start();setTimeout(()=>o.stop(),500);navigator.vibrate&&navigator.vibrate(400)}catch(e){}}
+function shot(f){return new Promise(ok=>{const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const c=document.createElement("canvas"),s=240/im.width;c.width=240;c.height=im.height*s;c.getContext("2d").drawImage(im,0,0,c.width,c.height);ok(c.toDataURL("image/jpeg",.5))};im.src=r.result};r.readAsDataURL(f)})}
+function pos(){return new Promise((ok,no)=>navigator.geolocation.getCurrentPosition(p=>ok(p.coords),e=>no(e),{enableHighAccuracy:true,timeout:20000}))}
+function dist(a,b,c,d){const t=x=>x*Math.PI/180,dl=t(c-a),dg=t(d-b),h=Math.sin(dl/2)**2+Math.cos(t(a))*Math.cos(t(c))*Math.sin(dg/2)**2;return Math.round(12742000*Math.asin(Math.sqrt(h)))}
+const setM=t=>{const e=$("msg");if(e)e.innerHTML=t};
+
+function loginUI(){go(`<div class="card"><h3>AttendPay લોગિન</h3><input id="m" type="tel" placeholder="મોબાઇલ નંબર"><input id="p" type="password" placeholder="PIN (6 આંકડા)"><button class="a" onclick="doLogin()">લોગિન</button><p class="mu" onclick="regUI()" style="text-align:center;text-decoration:underline">નવી કંપની (એડમિન) બનાવો</p></div>`)}
+function regUI(){go(`<div class="card"><h3>નવી કંપની (એડમિન)</h3><input id="c" placeholder="કંપની/એજન્સીનું નામ"><input id="n" placeholder="તમારું નામ"><input id="m" type="tel" placeholder="મોબાઇલ નંબર"><input id="p" type="password" placeholder="PIN (ઓછામાં ઓછા 6 આંકડા)"><button class="a" onclick="doReg()">બનાવો</button><p class="mu" onclick="loginUI()" style="text-align:center;text-decoration:underline">પાછા લોગિન</p></div>`)}
+async function doLogin(){try{AC=AC||new(window.AudioContext||window.webkitAudioContext)();await auth.signInWithEmailAndPassword(em($("m").value),$("p").value)}catch(e){alert("લોગિન ન થયું: "+e.message)}}
+async function doReg(){const c=$("c").value,n=$("n").value,m=$("m").value,p=$("p").value;try{AC=AC||new(window.AudioContext||window.webkitAudioContext)();const r=await auth.createUserWithEmailAndPassword(em(m),p),id=r.user.uid;await db.collection("users").doc(id).set({name:n,mobile:m,role:"admin",cid:id,company:c});await db.collection("settings").doc(id).set({radius:200})}catch(e){alert(e.message)}}
+auth.onAuthStateChanged(async u=>{unsub.forEach(f=>f());unsub=[];clearInterval(tm);ck=null;if(!u){loginUI();return}
+ let d;for(let i=0;i<6;i++){d=await db.collection("users").doc(u.uid).get();if(d.exists)break;await new Promise(r=>setTimeout(r,700))}
+ if(!d.exists){alert("યુઝર મળ્યો નથી");auth.signOut();return}
+ U={id:u.uid,...d.data()};CID=U.cid;U.role=="employee"?empUI():supUI()});
+
+/* ---------- કામદાર ---------- */
+async function empUI(){
+ go(hdr()+`<div id="chk"></div><div class="card"><h3>આજની હાજરી</h3><input type="file" accept="image/*" capture="user" id="f" style="display:none" onchange="pick(this)"><button class="a" onclick="$('f').click()">📷 સેલ્ફી લો (હાજરી / છૂટવું)</button><div id="msg" class="mu"></div></div><div class="card" id="earn"></div>`);
+ unsub.push(db.collection("attendance").doc(U.id+"_"+today()).onSnapshot(d=>{const a=d.data(),e=$("earn");if(!e)return;if(!a){e.innerHTML='<span class="mu">આજે હાજરી નથી.</span>';return}
+  const h=a.out?a.hrs:Math.round((Date.now()-a.in)/360000)/10,c=calc(a.w,h,a.otSt=="ok");
+  e.innerHTML=`<h3>આજની કમાણી</h3><div class="big">₹${c.net}</div><div class="row"><span>આવ્યા</span><b>${tf(a.in)}</b></div><div class="row"><span>છૂટ્યા</span><b>${a.out?tf(a.out):"હજી ચાલુ"}</b></div><div class="row"><span>કલાક</span><b>${h}</b></div><div class="row"><span>ઓવરટાઇમ</span><b>${a.hrs>HR?(a.hrs-HR).toFixed(1)+" ક. "+({pending:"મંજૂરી બાકી",ok:"મંજૂર",no:"નામંજૂર"})[a.otSt]:"નથી"}</b></div><div class="row"><span>કુલ પગાર</span><b>₹${c.g}</b></div><div class="row"><span>EPF</span><b>-₹${c.pf}</b></div><div class="row"><span>ESIC</span><b>-₹${c.es}</b></div>`}));
+ unsub.push(db.collection("checks").where("uid","==",U.id).where("st","==","ring").onSnapshot(s=>{clearInterval(tm);ck=null;s.forEach(d=>{ck={id:d.id,t:d.data().t};if(!d.data().dv)d.ref.update({dv:true})});if(!ck){$("chk")&&($("chk").innerHTML="");return}tm=setInterval(tick,1000);tick()}));
+}
+function tick(){if(!ck||!$("chk"))return;const l=180-Math.floor((Date.now()-ck.t)/1000);
+ if(l<=0){db.collection("checks").doc(ck.id).update({st:"miss"});clearInterval(tm);ck=null;$("chk").innerHTML="";return}
+ beep();$("chk").innerHTML=`<div class="card" style="border:2px solid #b91c1c"><h3 class="bad">🔔 રેન્ડમ ચેક!</h3><div class="big bad">0${Math.floor(l/60)}:${String(l%60).padStart(2,"0")}</div><input type="file" accept="image/*" capture="user" id="f2" style="display:none" onchange="pick2(this)"><button class="a" onclick="$('f2').click()">📷 સેલ્ફી લો</button></div>`}
+async function pick2(i){if(!i.files[0]||!ck)return;const id=ck.id;try{const img=await shot(i.files[0]);let d=null;try{const p=await pos(),S=(await db.collection("settings").doc(CID).get()).data();if(S.lat)d=dist(p.latitude,p.longitude,S.lat,S.lng)}catch(e){}
+ await db.collection("checks").doc(id).update({st:"ok",selfie:img,d,done:Date.now()});clearInterval(tm);ck=null;$("chk").innerHTML='<div class="card ok">ચેક પાસ ✓</div>'}catch(e){alert(e.message)}}
+async function pick(i){if(!i.files[0])return;setM("લોકેશન અને ફોટો તપાસાય છે...");
+ try{const img=await shot(i.files[0]),p=await pos(),S=(await db.collection("settings").doc(CID).get()).data()||{};
+  let d=null;if(S.lat){d=dist(p.latitude,p.longitude,S.lat,S.lng);if(d>(S.radius||200)){setM(`<span class="bad">રેન્જની બહાર છો (${d} મી, મર્યાદા ${S.radius||200} મી). હાજરી પૂરાઈ નથી.</span>`);return}}
+  const ref=db.collection("attendance").doc(U.id+"_"+today()),s=await ref.get(),now=Date.now();
+  if(!s.exists){await ref.set({uid:U.id,cid:CID,date:today(),name:U.name,w:U.wage||0,in:now,selfie:img,d,otSt:"none",hrs:0});setM('<span class="ok">હાજરી પૂરાઈ ✓</span>')}
+  else if(!s.data().out){const h=Math.round((now-s.data().in)/360000)/10;await ref.update({out:now,hrs:h,otSt:h>HR?"pending":"none",selfieOut:img});setM('<span class="ok">છૂટવાનો સમય નોંધાયો ✓</span>')}
+  else setM("આજની હાજરી પૂરી થઈ ગઈ છે.")}catch(e){setM('<span class="bad">લોકેશન/ફોટો ન મળ્યો: '+e.message+"</span>")}i.value=""}
+
+/* ---------- સુપરવાઇઝર / એડમિન ---------- */
+async function supUI(){
+ const ad=U.role=="admin";
+ TEAM=(await db.collection("users").where("cid","==",CID).get()).docs.map(d=>({id:d.id,...d.data()}));
+ go(hdr()+`<div class="card"><h3>આજની હાજરી</h3><div id="list" class="mu">લોડ...</div></div>
+ <div class="card"><h3>રેન્ડમ સેલ્ફી ચેક</h3><select id="ce">${TEAM.filter(x=>x.role=="employee").map(x=>`<option value="${x.id}">${x.name}</option>`).join("")}</select><button class="a" onclick="sendChk()">🔔 ચેક મોકલો</button><div id="cl"></div></div>
+ <div class="card"><h3>સાઇટ રેન્જ</h3><div id="rg"></div></div>
+ ${ad?`<div class="card"><h3>નવો કામદાર / સુપરવાઇઝર</h3><input id="un" placeholder="નામ"><input id="um" type="tel" placeholder="મોબાઇલ"><input id="up" type="password" placeholder="PIN (6 આંકડા)"><input id="uw" type="number" placeholder="રોજનો પગાર ₹"><select id="ur"><option value="employee">કામદાર</option><option value="supervisor">સુપરવાઇઝર</option></select><button class="a" onclick="addU()">ઉમેરો</button><div class="mu">${TEAM.map(x=>x.name+" ("+RL[x.role]+")").join(", ")}</div></div>
+ <div class="card"><h3>પેરોલ</h3><input id="mo" type="month" value="${today().slice(0,7)}"><button class="a" onclick="payroll()">પેરોલ બતાવો</button><div id="pr"></div></div>`:""}
+ <div id="msg"></div>`);
+ unsub.push(db.collection("attendance").where("cid","==",CID).where("date","==",today()).onSnapshot(s=>{const e=$("list");if(!e)return;e.innerHTML=s.empty?"હજી કોઈની હાજરી નથી.":s.docs.map(d=>{const a=d.data(),o=a.hrs>HR;return`<div class="row"><span><img class="t" src="${a.selfie}"> ${a.name}</span><span>${tf(a.in)}–${a.out?tf(a.out):"ચાલુ"}${a.d!=null?" | "+a.d+"મી":""}${o?`<br>OT ${(a.hrs-HR).toFixed(1)}ક: ${a.otSt=="pending"?`<button class="s g" onclick="otd('${d.id}','ok')">મંજૂર</button><button class="s r" onclick="otd('${d.id}','no')">ના</button>`:a.otSt=="ok"?'<b class="ok">મંજૂર</b>':'<b class="bad">ના</b>'}`:""}</span></div>`}).join("")}));
+ unsub.push(db.collection("checks").where("cid","==",CID).onSnapshot(s=>{const e=$("cl");if(!e)return;const L=s.docs.map(d=>d.data()).sort((a,b)=>b.t-a.t).slice(0,10);const nm=u=>(TEAM.find(x=>x.id==u)||{}).name||"?";e.innerHTML=L.map(c=>{let t;const old=Date.now()-c.t>200000;if(c.st=="ok")t='<span class="ok">પાસ ✓</span>';else if(c.st=="miss"||(c.st=="ring"&&old&&c.dv))t='<span class="bad">ચૂકી ગયો ⚠ (ફ્લેગ)</span>';else if(c.st=="ring"&&old&&!c.dv)t="ટેકનિકલ સમસ્યા (ફોન સુધી પહોંચ્યું નથી)";else t="રિંગ ચાલુ...";return`<div class="row"><span>${nm(c.uid)} ${tf(c.t)}</span><span>${t}</span></div>`}).join("")+'<p class="mu">ચૂકી જાય તો સજા નહીં, ફક્ત ફ્લેગ. નિર્ણય માણસ લે.</p>'}));
+ unsub.push(db.collection("settings").doc(CID).onSnapshot(d=>{const S=d.data()||{},e=$("rg");if(!e)return;e.innerHTML=`<div class="row"><span>હાલની રેન્જ</span><b>${S.radius||200} મી</b></div><div class="row"><span>સાઇટ લોકેશન</span><b>${S.lat?"સેટ છે":"સેટ નથી"}</b></div>`+(S.pending?`<div class="row"><span>બાકી વિનંતી: <b>${S.pending} મી</b> (${S.pendBy})</span>${ad?`<span><button class="s g" onclick="rdec(${S.pending})">મંજૂર</button><button class="s r" onclick="rdec(0)">ના</button></span>`:""}</div>`:"")+`<input id="nr" type="number" placeholder="નવી રેન્જ (મીટર)"><button class="a" onclick="rreq()">${ad?"રેન્જ સીધી સેટ કરો":"એડમિનને વિનંતી મોકલો"}</button>`+(ad?`<button class="a" onclick="setSite()">📍 હું અહીં છું, આ સાઇટ સેટ કરો</button>`:"")}));
+}
+const otd=(id,v)=>db.collection("attendance").doc(id).update({otSt:v});
+const sendChk=()=>{const u=$("ce").value;if(u)db.collection("checks").add({cid:CID,uid:u,t:Date.now(),st:"ring",dv:false})};
+function rreq(){const v=+$("nr").value;if(!v)return;U.role=="admin"?db.collection("settings").doc(CID).set({radius:v,pending:null},{merge:true}):db.collection("settings").doc(CID).set({pending:v,pendBy:U.name},{merge:true})}
+const rdec=v=>db.collection("settings").doc(CID).set(v?{radius:v,pending:null}:{pending:null},{merge:true});
+async function setSite(){try{const p=await pos();await db.collection("settings").doc(CID).set({lat:p.latitude,lng:p.longitude},{merge:true});alert("સાઇટ લોકેશન સેટ થયું")}catch(e){alert("લોકેશન ન મળ્યું: "+e.message)}}
+async function addU(){const n=$("un").value,m=$("um").value,p=$("up").value,w=+$("uw").value,r=$("ur").value;try{const x=await sec.auth().createUserWithEmailAndPassword(em(m),p);await db.collection("users").doc(x.user.uid).set({name:n,mobile:m,role:r,cid:CID,wage:w});await sec.auth().signOut();alert("ઉમેર્યો ✓");supUI()}catch(e){alert(e.message)}}
+async function payroll(){const mo=$("mo").value,s=await db.collection("attendance").where("cid","==",CID).get(),G={};
+ s.docs.map(d=>d.data()).filter(a=>a.date.startsWith(mo)&&a.out).forEach(a=>{const c=calc(a.w,a.hrs,a.otSt=="ok"),g=G[a.uid]||(G[a.uid]={n:a.name,d:0,h:0,o:0,g:0,pf:0,es:0,net:0});g.d++;g.h+=a.hrs;g.o+=c.o;g.g+=c.g;g.pf+=c.pf;g.es+=c.es;g.net+=c.net});
+ const R=Object.values(G);window._csv="Name,Days,Hours,OT,Gross,EPF,ESIC,Net\n"+R.map(g=>[g.n,g.d,g.h.toFixed(1),g.o.toFixed(1),g.g,g.pf,g.es,g.net].join(",")).join("\n");
+ $("pr").innerHTML=`<div class="sc"><table><tr><th>નામ</th><th>દિવસ</th><th>કલાક</th><th>OT</th><th>કુલ</th><th>EPF</th><th>ESIC</th><th>ચોખ્ખું</th></tr>${R.map(g=>`<tr><td>${g.n}</td><td>${g.d}</td><td>${g.h.toFixed(1)}</td><td>${g.o.toFixed(1)}</td><td>${g.g}</td><td>${g.pf}</td><td>${g.es}</td><td><b>${g.net}</b></td></tr>`).join("")}</table></div><button class="a" onclick="dl()">⬇ Excel (CSV) ડાઉનલોડ</button>`}
+function dl(){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob(["\ufeff"+window._csv],{type:"text/csv"}));a.download="payroll.csv";a.click()}
+</script></body></html>
